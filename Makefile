@@ -1,4 +1,5 @@
 SHELL := /bin/bash
+MYSQL := $(shell which mysql 2>/dev/null || echo /usr/local/mysql/bin/mysql)
 
 .PHONY: help install setup secret db-reset db-schema db-seed db-setup db-check start dev clean
 
@@ -8,11 +9,11 @@ include $(ENV_FILE)
 export
 
 help:
-	@echo "FitShare Makefile"
+	@echo "Sports Social API Makefile"
 	@echo ""
 	@echo "Available commands:"
 	@echo "  make install    Install Node dependencies"
-	@echo "  make secret     Replace _SECRET_ in .env with a generated secret"
+	@echo "  make secret     Replace _SECRET_ in .env with a generated JWT secret"
 	@echo "  make db-reset   Drop and recreate the database"
 	@echo "  make db-schema  Create all database tables"
 	@echo "  make db-seed    Insert starter data"
@@ -43,9 +44,9 @@ db-reset:
 	@if [ ! -f "$(ENV_FILE)" ]; then echo "Error: $(ENV_FILE) not found."; exit 1; fi
 	@set -a; source "$(ENV_FILE)"; set +a; \
 	if [ -n "$$DB_PASSWORD" ]; then \
-		mysql -h "$${DB_HOST:-localhost}" -u "$${DB_USER:-root}" -p"$$DB_PASSWORD" < database/reset.sql; \
+		$(MYSQL) -h "$${DB_HOST:-localhost}" -u "$${DB_USER:-root}" -p"$$DB_PASSWORD" < database/reset.sql; \
 	else \
-		mysql -h "$${DB_HOST:-localhost}" -u "$${DB_USER:-root}" < database/reset.sql; \
+		$(MYSQL) -h "$${DB_HOST:-localhost}" -u "$${DB_USER:-root}" < database/reset.sql; \
 	fi
 	@echo "Databse successfully reset."
 
@@ -53,9 +54,9 @@ db-schema:
 	@if [ ! -f "$(ENV_FILE)" ]; then echo "Error: $(ENV_FILE) not found."; exit 1; fi
 	@set -a; source "$(ENV_FILE)"; set +a; \
 	if [ -n "$$DB_PASSWORD" ]; then \
-		mysql -h "$${DB_HOST:-localhost}" -u "$${DB_USER:-root}" -p"$$DB_PASSWORD" < database/schema.sql; \
+		$(MYSQL) -h "$${DB_HOST:-localhost}" -u "$${DB_USER:-root}" -p"$$DB_PASSWORD" < database/schema.sql; \
 	else \
-		mysql -h "$${DB_HOST:-localhost}" -u "$${DB_USER:-root}" < database/schema.sql; \
+		$(MYSQL) -h "$${DB_HOST:-localhost}" -u "$${DB_USER:-root}" < database/schema.sql; \
 	fi
 	@echo "Databse successfully built."
 
@@ -63,9 +64,9 @@ db-seed:
 	@if [ ! -f "$(ENV_FILE)" ]; then echo "Error: $(ENV_FILE) not found."; exit 1; fi
 	@set -a; source "$(ENV_FILE)"; set +a; \
 	if [ -n "$$DB_PASSWORD" ]; then \
-		mysql -h "$${DB_HOST:-localhost}" -u "$${DB_USER:-root}" -p"$$DB_PASSWORD" < database/seed.sql; \
+		$(MYSQL) -h "$${DB_HOST:-localhost}" -u "$${DB_USER:-root}" -p"$$DB_PASSWORD" < database/seed.sql; \
 	else \
-		mysql -h "$${DB_HOST:-localhost}" -u "$${DB_USER:-root}" < database/seed.sql; \
+		$(MYSQL) -h "$${DB_HOST:-localhost}" -u "$${DB_USER:-root}" < database/seed.sql; \
 	fi
 	@echo "Databse successfully populated."
 
@@ -79,9 +80,9 @@ db-check:
 	@if [ ! -f "$(ENV_FILE)" ]; then echo "Error: $(ENV_FILE) not found."; exit 1; fi
 	@set -a; source "$(ENV_FILE)"; set +a; \
 	if [ -n "$$DB_PASSWORD" ]; then \
-		mysql -h "$${DB_HOST:-localhost}" -u "$${DB_USER:-root}" -p"$$DB_PASSWORD" -e "USE $${DB_NAME:-fitshare_db}; SHOW TABLES;"; \
+		$(MYSQL) -h "$${DB_HOST:-localhost}" -u "$${DB_USER:-root}" -p"$$DB_PASSWORD" -e "USE $${DB_NAME:-sports_social_db}; SHOW TABLES;"; \
 	else \
-		mysql -h "$${DB_HOST:-localhost}" -u "$${DB_USER:-root}" -p -e "USE $${DB_NAME:-fitshare_db}; SHOW TABLES;"; \
+		$(MYSQL) -h "$${DB_HOST:-localhost}" -u "$${DB_USER:-root}" -e "USE $${DB_NAME:-sports_social_db}; SHOW TABLES;"; \
 	fi
 
 start: secret

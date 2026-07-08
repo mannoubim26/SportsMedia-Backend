@@ -1,35 +1,39 @@
 const profileModel = require('../models/profileModel');
-const { publicUploadPath } = require('../utils/helpers');
+const userModel = require('../models/userModel');
 
 async function getProfile(req, res, next) {
   try {
-    const profile = await profileModel.getProfileByUsername(req.params.username);
-    if (!profile) return res.status(404).json({ error: 'Profile not found.' });
-
-    const posts = await profileModel.getPublicPostsForUser(profile.user_id);
-    res.json({ profile, posts });
+    const profile = await profileModel.getProfileByUserId(req.user.userId);
+    if (!profile) {
+      return res.status(404).json({ success: false, message: 'Profile not found.' });
+    }
+    res.json({ success: true, data: profile });
   } catch (error) {
     next(error);
   }
 }
 
-async function updateMe(req, res, next) {
+async function updateProfile(req, res, next) {
+  const { name, age, bio } = req.body;
+  const profilePicture = req.file ? `/uploads/${req.file.filename}` : undefined;
+
   try {
-    await profileModel.updateMyProfile(req.session.user.user_id, {
-      displayName: req.body.display_name,
-      bio: req.body.bio,
-      age: req.body.age,
-      fitnessLevel: req.body.fitness_level,
-      profilePictureUrl: publicUploadPath(req.file),
-    });
-
-    res.json({ message: 'Profile updated.' });
+    await profileModel.updateProfile(req.user.userId, { name, age, bio, profilePicture });
+    const profile = await profileModel.getProfileByUserId(req.user.userId);
+    res.json({ success: true, message: 'Profile updated successfully.', data: profile });
   } catch (error) {
     next(error);
   }
 }
 
-module.exports = {
-  getProfile,
-  updateMe,
-};
+async function deleteProfile(req, res, next) {
+  try {
+    // Deleting the user cascades to profile, posts, comments, likes, shares
+    await userModel.deleteUser(req.user.userId);
+    res.json({ success: true, message: 'Account deleted successfully.' });
+  } catch (error) {
+    next(error);
+  }
+}
+
+module.exports = { getProfile, updateProfile, deleteProfile };

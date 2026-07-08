@@ -6,61 +6,38 @@ async function toggleLike(userId, postId) {
     [userId, postId]
   );
 
-  if (existing.length) {
+  if (existing.length > 0) {
     await pool.execute('DELETE FROM likes WHERE user_id = ? AND post_id = ?', [userId, postId]);
-    return false;
+  } else {
+    await pool.execute('INSERT INTO likes (user_id, post_id) VALUES (?, ?)', [userId, postId]);
   }
 
-  await pool.execute('INSERT INTO likes (user_id, post_id) VALUES (?, ?)', [userId, postId]);
-  return true;
+  const [countRows] = await pool.execute(
+    'SELECT COUNT(*) AS total FROM likes WHERE post_id = ?',
+    [postId]
+  );
+
+  return { liked: existing.length === 0, totalLikes: countRows[0].total };
 }
 
-async function toggleBookmark(userId, postId) {
+async function toggleShare(userId, postId) {
   const [existing] = await pool.execute(
-    'SELECT user_id FROM bookmarks WHERE user_id = ? AND post_id = ?',
+    'SELECT user_id FROM shares WHERE user_id = ? AND post_id = ?',
     [userId, postId]
   );
 
-  if (existing.length) {
-    await pool.execute('DELETE FROM bookmarks WHERE user_id = ? AND post_id = ?', [userId, postId]);
-    return false;
+  if (existing.length > 0) {
+    await pool.execute('DELETE FROM shares WHERE user_id = ? AND post_id = ?', [userId, postId]);
+  } else {
+    await pool.execute('INSERT INTO shares (user_id, post_id) VALUES (?, ?)', [userId, postId]);
   }
 
-  await pool.execute('INSERT INTO bookmarks (user_id, post_id) VALUES (?, ?)', [userId, postId]);
-  return true;
-}
-
-async function getBookmarksForUser(userId) {
-  const [rows] = await pool.execute(
-    `SELECT
-      wp.post_id,
-      wp.title,
-      wp.slug,
-      wp.caption,
-      wp.image_url,
-      b.created_at AS bookmarked_at,
-      u.username
-     FROM bookmarks b
-     JOIN workout_posts wp ON wp.post_id = b.post_id
-     JOIN users u ON u.user_id = wp.user_id
-     WHERE b.user_id = ? AND wp.is_deleted = FALSE
-     ORDER BY b.created_at DESC`,
-    [userId]
+  const [countRows] = await pool.execute(
+    'SELECT COUNT(*) AS total FROM shares WHERE post_id = ?',
+    [postId]
   );
 
-  return rows;
+  return { shared: existing.length === 0, totalShares: countRows[0].total };
 }
 
-async function recordShare({ userId, postId, platform }) {
-  await pool.execute(
-    `INSERT INTO shares (user_id, post_id, platform) VALUES (?, ?, ?)`,
-    [userId || null, postId, platform || 'copy_link']
-  );
-}
-
-module.exports = {
-  toggleLike,
-  toggleBookmark,
-  getBookmarksForUser,
-  recordShare,
-};
+module.exports = { toggleLike, toggleShare };

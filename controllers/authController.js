@@ -1,54 +1,70 @@
 const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
 const pool = require('../config/db');
 const userModel = require('../models/userModel');
 const profileModel = require('../models/profileModel');
 
-async function register(req, res, next) {
-  const { username, email, password, display_name } = req.body;
+function generateToken(user) {
+  return jwt.sign(
+    { userId: user.user_id, email: user.email },
+    process.env.JWT_SECRET,
+    { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
+  );
+}
 
-  if (!username || !email || !password) {
-    return res.status(400).json({ error: 'username, email, and password are required.' });
+async function register(req, res, next) {
+  const { name, age, email, password } = req.body;
+
+  if (!name || !age || !email || !password) {
+    return res.status(400).json({
+      success: false,
+      message: 'name, age, email, and password are required.',
+    });
   }
 
-  if (password.length < 8) {
-    return res.status(400).json({ error: 'Password must be at least 8 characters long.' });
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return res.status(400).json({ success: false, message: 'Invalid email format.' });
+  }
+
+  if (String(password).length < 6) {
+    return res.status(400).json({
+      success: false,
+      message: 'Password must be at least 6 characters.',
+    });
   }
 
   const conn = await pool.getConnection();
-
   try {
     await conn.beginTransaction();
 
     const passwordHash = await bcrypt.hash(password, 12);
     const userId = await userModel.createUser(conn, {
-      username,
+      name: String(name).trim(),
+      age: Number(age),
       email,
       passwordHash,
     });
 
     await profileModel.createProfile(conn, {
       userId,
-      displayName: display_name,
-      username,
+      name: String(name).trim(),
+      age: Number(age),
     });
 
     await conn.commit();
 
-    req.session.user = {
-      user_id: userId,
-      username: username.trim(),
-      email: email.trim().toLowerCase(),
-      role: 'user',
-    };
+    const token = generateToken({ user_id: userId, email: email.trim().toLowerCase() });
 
-    res.status(201).json({ message: 'Registered successfully.', user: req.session.user });
+    res.status(201).json({
+      success: true,
+      message: 'User registered successfully.',
+      data: { token, userId, email: email.trim().toLowerCase(), name: String(name).trim() },
+    });
   } catch (error) {
     await conn.rollback();
-
     if (error.code === 'ER_DUP_ENTRY') {
-      return res.status(409).json({ error: 'Username or email already exists.' });
+      return res.status(409).json({ success: false, message: 'Email already in use.' });
     }
-
     next(error);
   } finally {
     conn.release();
@@ -59,45 +75,35 @@ async function login(req, res, next) {
   const { email, password } = req.body;
 
   if (!email || !password) {
-    return res.status(400).json({ error: 'email and password are required.' });
+    return res.status(400).json({ success: false, message: 'email and password are required.' });
   }
 
   try {
     const user = await userModel.findUserByEmail(email);
-    if (!user) return res.status(401).json({ error: 'Invalid login.' });
+    if (!user) {
+      return res.status(401).json({ success: false, message: 'Invalid credentials.' });
+    }
 
-    const isMatch = await bcrypt.compare(password, user.password_hash);
-    if (!isMatch) return res.status(401).json({ error: 'Invalid login.' });
+    const isMatch = await bcrypt.compare(String(password), user.password_hash);
+    if (!isMatch) {
+      return res.status(401).json({ success: false, message: 'Invalid credentials.' });
+    }
 
-    req.session.user = {
-      user_id: user.user_id,
-      username: user.username,
-      email: user.email,
-      role: user.role,
-    };
+    const token = generateToken(user);
 
-    res.json({ message: 'Logged in successfully.', user: req.session.user });
+    res.json({
+      success: true,
+      message: 'Logged in successfully.',
+      data: { token, userId: user.user_id, email: user.email, name: user.name },
+    });
   } catch (error) {
     next(error);
   }
 }
 
-function logout(req, res, next) {
-  req.session.destroy((error) => {
-    if (error) return next(error);
-
-    res.clearCookie('fitshare.sid');
-    res.json({ message: 'Logged out successfully.' });
-  });
+function logout(_req, res) {
+  // JWT is stateless; the client discards the token
+  res.json({ success: true, message: 'Logged out successfully.' });
 }
 
-function me(req, res) {
-  res.json({ user: req.session.user || null });
-}
-
-module.exports = {
-  register,
-  login,
-  logout,
-  me,
-};
+module.exports = { register, login, logout };
