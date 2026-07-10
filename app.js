@@ -14,10 +14,23 @@ const { notFoundHandler, errorHandler } = require('./middleware/errorMiddleware'
 
 const app = express();
 
-// CORS — allow requests from the React frontend
+// CORS — allow requests from the React frontend(s).
+// CLIENT_ORIGIN can be a single origin or a comma-separated list, e.g.
+// "http://localhost:5173,https://your-app.vercel.app"
+const allowedOrigins = (process.env.CLIENT_ORIGIN || 'http://localhost:5173')
+  .split(',')
+  .map((o) => o.trim())
+  .filter(Boolean);
+
 app.use(
   cors({
-    origin: process.env.CLIENT_ORIGIN || 'http://localhost:5173',
+    origin(origin, callback) {
+      // Allow non-browser requests (e.g. curl, mobile apps) with no Origin header
+      if (!origin || allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+      return callback(new Error(`Origin ${origin} not allowed by CORS`));
+    },
     credentials: true,
   })
 );
