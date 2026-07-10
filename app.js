@@ -41,6 +41,14 @@ app.use(express.urlencoded({ extended: true }));
 // Serve uploaded images statically
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
+// Health check — quick way to confirm the server is up (no DB needed)
+app.get('/', (req, res) => {
+  res.json({ status: 'ok', service: 'Sports Social API' });
+});
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok' });
+});
+
 // API routes
 app.use('/api/auth', authRoutes);
 app.use('/api/profile', profileRoutes);
