@@ -23,10 +23,6 @@ async function createComment(req, res, next) {
     return res.status(400).json({ success: false, message: 'text is required.' });
   }
 
-  if (String(text).trim().length > 500) {
-    return res.status(400).json({ success: false, message: 'Comment must be 500 characters or fewer.' });
-  }
-
   try {
     const post = await postModel.getPostOwner(postId);
     if (!post) {
@@ -39,11 +35,10 @@ async function createComment(req, res, next) {
       text: String(text).trim(),
     });
 
-    const comment = await commentModel.getCommentById(commentId);
     res.status(201).json({
       success: true,
       message: 'Comment added successfully.',
-      data: comment,
+      data: { comment_id: commentId },
     });
   } catch (error) {
     next(error);

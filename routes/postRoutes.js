@@ -4,7 +4,7 @@ const commentController = require('../controllers/commentController');
 const likeController = require('../controllers/likeController');
 const shareController = require('../controllers/shareController');
 const { requireAuth, optionalAuth } = require('../middleware/authMiddleware');
-const { upload, validateImageMagicBytes } = require('../middleware/uploadMiddleware');
+const upload = require('../middleware/uploadMiddleware');
 
 const router = express.Router();
 
@@ -13,8 +13,8 @@ router.get('/', optionalAuth, postController.listPosts);
 router.get('/:id', optionalAuth, postController.getPost);
 
 // Post CRUD (auth required)
-router.post('/', requireAuth, upload.single('image'), validateImageMagicBytes, postController.createPost);
-router.put('/:id', requireAuth, upload.single('image'), validateImageMagicBytes, postController.updatePost);
+router.post('/', requireAuth, upload.single('image'), postController.createPost);
+router.put('/:id', requireAuth, upload.single('image'), postController.updatePost);
 router.delete('/:id', requireAuth, postController.deletePost);
 
 // Comments nested under posts

@@ -38,60 +38,16 @@ function formatPost(row) {
   };
 }
 
-async function listPosts({ page, limit, userId, search, categoryId, hashtag, authorId }) {
+async function listPosts({ page, limit, userId }) {
   const uid = userId || 0;
   const offset = (page - 1) * limit;
 
-  // Build dynamic WHERE conditions and parameter list
-  const conditions = [];
-  const params = [];
-
-  if (search) {
-    const term = `%${search}%`;
-    conditions.push(`(
-      p.title LIKE ?
-      OR p.description LIKE ?
-      OR EXISTS (
-        SELECT 1 FROM post_hashtags ph2
-        JOIN hashtags h2 ON h2.hashtag_id = ph2.hashtag_id
-        WHERE ph2.post_id = p.post_id AND h2.tag LIKE ?
-      )
-    )`);
-    params.push(term, term, term);
-  }
-
-  if (categoryId) {
-    conditions.push('p.category_id = ?');
-    params.push(categoryId);
-  }
-
-  if (hashtag) {
-    conditions.push('h.tag = ?');
-    params.push(hashtag);
-  }
-
-  if (authorId) {
-    conditions.push('p.user_id = ?');
-    params.push(authorId);
-  }
-
-  const whereClause = conditions.length > 0 ? 'WHERE ' + conditions.join(' AND ') : '';
-
-  // COUNT uses the same filters so pagination totals are correct.
-  // We join hashtags only when needed (hashtag filter) to avoid inflating counts.
-  const needsHashtagJoin = !!hashtag;
-  const countSql = `
-    SELECT COUNT(DISTINCT p.post_id) AS total
-    FROM posts p
-    ${needsHashtagJoin ? 'LEFT JOIN post_hashtags ph ON ph.post_id = p.post_id LEFT JOIN hashtags h ON h.hashtag_id = ph.hashtag_id' : ''}
-    ${whereClause}
-  `;
-  const [countRows] = await pool.execute(countSql, params);
+  const [countRows] = await pool.execute('SELECT COUNT(*) AS total FROM posts');
   const total = countRows[0].total;
 
   const [rows] = await pool.execute(
-    POST_QUERY(whereClause) + ` ORDER BY p.created_at DESC LIMIT ${limit} OFFSET ${offset}`,
-    [uid, uid, ...params]
+    POST_QUERY('') + ` ORDER BY p.created_at DESC LIMIT ${limit} OFFSET ${offset}`,
+    [uid, uid]
   );
 
   return { posts: rows.map(formatPost), total };
