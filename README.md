@@ -1,39 +1,70 @@
-# FitShare MVC Backend
+# SportsMedia — Backend API
 
-FitShare is a workout social app where users can post workout photos/text and submit structured workout data for an open workout database.
+RESTful API for the SportsMedia platform: a sports news and community web application where users can post articles, comment, like, share, follow hashtags, and browse content by category.
 
-## Structure
+## Features
 
-```text
-fitshare_mvc/
-├── app.js
-├── config/
-│   └── db.js
-├── controllers/
-├── middleware/
-├── models/
-├── routes/
-├── utils/
-├── public/uploads/
-├── database/
-│   ├── reset.sql
-│   ├── schema.sql
-│   └── seed.sql
-└── views/
-```
+- JWT-based authentication (register, login, token refresh)
+- Post creation with image upload, hashtags, and category tagging
+- Server-side search and filtering (title, description, hashtag, category, author)
+- Comments with full author data returned on creation
+- Like and share toggles
+- Public user profiles and paginated user post feeds
+- Profile management with profile picture upload
+- Magic-byte MIME validation on all image uploads (JPEG / PNG only)
+- Input validation: title length, hashtag count, comment length limits
 
-## Setup
+## Tech Stack
+
+| Layer | Technology |
+|-------|-----------|
+| Runtime | Node.js |
+| Framework | Express 4 |
+| Database | MySQL (mysql2) |
+| Auth | JSON Web Tokens (jsonwebtoken) + bcrypt |
+| File uploads | Multer |
+| Config | dotenv |
+| Dev server | nodemon |
+
+## Prerequisites
+
+- Node.js 18+
+- MySQL 8+
+- npm
+
+## Installation
 
 ```bash
+git clone https://github.com/mannoubim26/SportsMedia-Backend.git
+cd SportsMedia-Backend
 npm install
 cp .env.example .env
 ```
 
-Edit `.env` with your MySQL password.
+Edit `.env` with your values (see section below).
 
-## Create the database
+## Environment Variables
 
-From the project folder:
+Create a `.env` file in the project root (copy from `.env.example`):
+
+```
+PORT=3000
+
+# MySQL connection
+DB_HOST=         # e.g. localhost
+DB_USER=         # e.g. root
+DB_PASSWORD=     # your MySQL password
+DB_NAME=         # e.g. sports_social_db
+
+# JWT
+JWT_SECRET=      # run `make secret` to generate a secure random value
+JWT_EXPIRES_IN=  # e.g. 7d
+
+# CORS — comma-separated list of allowed frontend origins
+CLIENT_ORIGIN=   # e.g. http://localhost:5173,https://your-app.vercel.app
+```
+
+## Database Setup
 
 ```bash
 mysql -u root -p < database/reset.sql
@@ -41,97 +72,101 @@ mysql -u root -p < database/schema.sql
 mysql -u root -p < database/seed.sql
 ```
 
-## Run
+`reset.sql` drops and recreates the database. `seed.sql` inserts sample data.
+
+## Running
 
 ```bash
+# Development (auto-restart on file changes)
+npm run dev
+
+# Production
 npm start
 ```
 
-Open:
+Server listens on `http://localhost:3000` (or the `PORT` value in `.env`).
 
-```text
-http://localhost:3000
-```
+## API Reference
 
-## Important routes
+All endpoints are prefixed with `/api`.
 
-### Auth
+### Auth — `/api/auth`
 
-```text
-POST /auth/register
-POST /auth/login
-POST /auth/logout
-GET  /auth/me
-```
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| POST | `/register` | — | Create account |
+| POST | `/login` | — | Get JWT token |
+| GET | `/me` | Required | Get current user |
 
-### Profiles
+### Posts — `/api/posts`
 
-```text
-GET /profiles/:username
-PUT /profiles/me
-```
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| GET | `/` | Optional | List/search posts. Query params: `search`, `category_id`, `hashtag`, `author_id`, `page`, `limit` |
+| GET | `/:id` | Optional | Get single post |
+| POST | `/` | Required | Create post (`multipart/form-data`) |
+| PUT | `/:id` | Required | Update post (owner only) |
+| DELETE | `/:id` | Required | Delete post (owner only) |
+| GET | `/:id/comments` | — | List comments on a post |
+| POST | `/:id/comments` | Required | Add comment (max 500 chars) |
+| POST | `/:id/like` | Required | Toggle like |
+| POST | `/:id/share` | Required | Toggle share |
 
-### Exercises database
+### Profile — `/api/profile`
 
-```text
-GET  /exercises
-POST /exercises
-```
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| GET | `/` | Required | Get own profile |
+| PUT | `/` | Required | Update own profile (`multipart/form-data`) |
+| DELETE | `/` | Required | Delete account |
 
-### Workout posts
+### Users — `/api/users`
 
-```text
-GET    /workouts
-GET    /workouts/:slug
-POST   /workouts
-PUT    /workouts/:postId
-DELETE /workouts/:postId
-```
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| GET | `/:id/profile` | — | Public profile (name, bio, picture) |
+| GET | `/:id/posts` | Optional | Paginated posts by a user |
 
-### Comments and interactions
+### Categories — `/api/categories`
 
-```text
-POST   /workouts/:postId/comments
-PUT    /comments/:commentId
-DELETE /comments/:commentId
-POST   /workouts/:postId/like
-POST   /workouts/:postId/bookmark
-GET    /bookmarks/me
-POST   /workouts/:postId/share
-```
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| GET | `/` | — | List all categories |
 
-## Creating workout posts
+### Upload — `/api/upload`
 
-For `POST /workouts`, send `multipart/form-data` if you include an image.
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| POST | `/` | Required | Upload image, returns URL |
 
-The `exercises` field should be a JSON array string:
+### Comments — `/api/comments`
 
-```json
-[
-  {
-    "exercise_id": 1,
-    "set_count": 3,
-    "reps": 12,
-    "rest_between_sets_seconds": 60,
-    "rest_after_exercise_seconds": 120
-  },
-  {
-    "exercise_id": 3,
-    "set_count": 3,
-    "time_seconds": 45,
-    "rest_between_sets_seconds": 60
-  }
-]
-```
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| DELETE | `/:id` | Required | Delete comment (owner only) |
 
-The `hashtags` field can be either a JSON array string:
+### Exercises — `/api/exercises`
 
-```json
-["beginner", "homeworkout"]
-```
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| GET | `/` | — | List exercises |
+| POST | `/` | Required | Add exercise |
 
-or a comma-separated string:
+### Workouts — `/api/workouts`
 
-```text
-beginner, homeworkout
-```
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| GET | `/` | — | List workouts |
+| GET | `/:slug` | — | Get workout by slug |
+| POST | `/` | Required | Create workout |
+| PUT | `/:postId` | Required | Update workout |
+| DELETE | `/:postId` | Required | Delete workout |
+
+## Image Upload
+
+Send `multipart/form-data` with an `image` field for routes that accept images. Only JPEG and PNG files are accepted; the server validates magic bytes regardless of the `Content-Type` header.
+
+## Team Members
+
+- Person A — Frontend (React + Vite + Tailwind + Shadcn UI)
+- Person B — Backend (Node.js + Express + MySQL)

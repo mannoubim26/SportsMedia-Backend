@@ -6,8 +6,13 @@ async function listPosts(req, res, next) {
   const limit = Math.min(50, Math.max(1, parseInt(req.query.limit) || 10));
   const userId = req.user ? req.user.userId : null;
 
+  const search     = req.query.search      ? String(req.query.search).trim()              : null;
+  const categoryId = req.query.category_id ? Number(req.query.category_id)                : null;
+  const hashtag    = req.query.hashtag     ? String(req.query.hashtag).trim().toLowerCase(): null;
+  const authorId   = req.query.author_id   ? Number(req.query.author_id)                  : null;
+
   try {
-    const { posts, total } = await postModel.listPosts({ page, limit, userId });
+    const { posts, total } = await postModel.listPosts({ page, limit, userId, search, categoryId, hashtag, authorId });
     res.json({
       success: true,
       data: {
@@ -43,8 +48,16 @@ async function createPost(req, res, next) {
   const hashtags = parseHashtags(req.body.hashtags);
   const imageUrl = req.file ? `/uploads/${req.file.filename}` : null;
 
+  if (hashtags.length > 10) {
+    return res.status(400).json({ success: false, message: 'Maximum 10 hashtags allowed.' });
+  }
+
   if (!title || !String(title).trim()) {
     return res.status(400).json({ success: false, message: 'title is required.' });
+  }
+
+  if (String(title).trim().length > 255) {
+    return res.status(400).json({ success: false, message: 'Title must be 255 characters or fewer.' });
   }
 
   try {
@@ -85,6 +98,14 @@ async function updatePost(req, res, next) {
     const { title, description, category_id } = req.body;
     const hashtags = req.body.hashtags !== undefined ? parseHashtags(req.body.hashtags) : undefined;
     const imageUrl = req.file ? `/uploads/${req.file.filename}` : undefined;
+
+    if (hashtags !== undefined && hashtags.length > 10) {
+      return res.status(400).json({ success: false, message: 'Maximum 10 hashtags allowed.' });
+    }
+
+    if (title !== undefined && String(title).trim().length > 255) {
+      return res.status(400).json({ success: false, message: 'Title must be 255 characters or fewer.' });
+    }
 
     await postModel.updatePost(postId, {
       title: title !== undefined ? String(title).trim() : undefined,
