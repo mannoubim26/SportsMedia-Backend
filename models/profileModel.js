@@ -44,4 +44,8 @@ async function updateProfile(userId, data) {
   );
 }
 
-module.exports = { createProfile, getProfileByUserId, updateProfile };
+async function getPublicProfile(userId) {
+  return getProfileByUserId(userId);
+}
+
+module.exports = { createProfile, getProfileByUserId, updateProfile, getPublicProfile };

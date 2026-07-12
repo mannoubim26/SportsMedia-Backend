@@ -36,4 +36,20 @@ async function deleteProfile(req, res, next) {
   }
 }
 
-module.exports = { getProfile, updateProfile, deleteProfile };
+async function getPublicProfile(req, res, next) {
+  const userId = parseInt(req.params.userId, 10);
+  if (isNaN(userId)) {
+    return res.status(400).json({ success: false, message: 'Invalid user ID.' });
+  }
+  try {
+    const profile = await profileModel.getPublicProfile(userId);
+    if (!profile) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+    res.json({ success: true, message: 'Profile fetched', data: profile });
+  } catch (error) {
+    next(error);
+  }
+}
+
+module.exports = { getProfile, updateProfile, deleteProfile, getPublicProfile };
