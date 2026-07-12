@@ -38,16 +38,40 @@ function formatPost(row) {
   };
 }
 
-async function listPosts({ page, limit, userId }) {
+async function listPosts({ page, limit, userId, search, categoryId, hashtag }) {
   const uid = userId || 0;
   const offset = (page - 1) * limit;
 
-  const [countRows] = await pool.execute('SELECT COUNT(*) AS total FROM posts');
+  const whereParts = [];
+  const filterParams = [];
+
+  if (search) {
+    whereParts.push('(p.title LIKE ? OR p.description LIKE ?)');
+    filterParams.push(`%${search}%`, `%${search}%`);
+  }
+  if (categoryId) {
+    whereParts.push('p.category_id = ?');
+    filterParams.push(Number(categoryId));
+  }
+  if (hashtag) {
+    const cleanTag = String(hashtag).replace(/^#/, '').toLowerCase();
+    whereParts.push(
+      'EXISTS (SELECT 1 FROM post_hashtags ph2 JOIN hashtags h2 ON h2.hashtag_id = ph2.hashtag_id WHERE ph2.post_id = p.post_id AND h2.tag = ?)'
+    );
+    filterParams.push(cleanTag);
+  }
+
+  const whereClause = whereParts.length ? `WHERE ${whereParts.join(' AND ')}` : '';
+
+  const [countRows] = await pool.execute(
+    `SELECT COUNT(DISTINCT p.post_id) AS total FROM posts p ${whereClause}`,
+    filterParams
+  );
   const total = countRows[0].total;
 
   const [rows] = await pool.execute(
-    POST_QUERY('') + ` ORDER BY p.created_at DESC LIMIT ${limit} OFFSET ${offset}`,
-    [uid, uid]
+    POST_QUERY(whereClause) + ` ORDER BY p.created_at DESC LIMIT ${limit} OFFSET ${offset}`,
+    [uid, uid, ...filterParams]
   );
 
   return { posts: rows.map(formatPost), total };

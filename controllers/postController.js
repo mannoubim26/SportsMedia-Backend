@@ -5,9 +5,17 @@ async function listPosts(req, res, next) {
   const page = Math.max(1, parseInt(req.query.page) || 1);
   const limit = Math.min(50, Math.max(1, parseInt(req.query.limit) || 10));
   const userId = req.user ? req.user.userId : null;
+  const { search, category_id, hashtag } = req.query;
 
   try {
-    const { posts, total } = await postModel.listPosts({ page, limit, userId });
+    const { posts, total } = await postModel.listPosts({
+      page,
+      limit,
+      userId,
+      search: search || null,
+      categoryId: category_id || null,
+      hashtag: hashtag || null,
+    });
     res.json({
       success: true,
       data: {

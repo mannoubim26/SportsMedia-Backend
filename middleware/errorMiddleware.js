@@ -11,10 +11,6 @@ function errorHandler(error, _req, res, _next) {
     return res.status(400).json({ success: false, message: error.message });
   }
 
-  if (error.message && error.message.includes('Only JPG')) {
-    return res.status(400).json({ success: false, message: error.message });
-  }
-
   if (error.code === 'ER_NO_REFERENCED_ROW_2') {
     return res.status(400).json({
       success: false,

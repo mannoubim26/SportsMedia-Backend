@@ -44,8 +44,33 @@ async function updateProfile(userId, data) {
   );
 }
 
-async function getPublicProfile(userId) {
-  return getProfileByUserId(userId);
+async function getProfileWithPosts(userId) {
+  const profile = await getProfileByUserId(userId);
+  if (!profile) return null;
+
+  const [posts] = await pool.execute(
+    `SELECT
+       p.post_id,
+       p.title,
+       p.description,
+       p.image_url,
+       p.created_at,
+       p.updated_at,
+       c.name AS category_name,
+       (SELECT COUNT(*) FROM likes    WHERE post_id = p.post_id) AS total_likes,
+       (SELECT COUNT(*) FROM comments WHERE post_id = p.post_id) AS total_comments
+     FROM posts p
+     LEFT JOIN categories c ON c.category_id = p.category_id
+     WHERE p.user_id = ?
+     ORDER BY p.created_at DESC`,
+    [userId]
+  );
+
+  return { ...profile, posts };
 }
 
-module.exports = { createProfile, getProfileByUserId, updateProfile, getPublicProfile };
+async function getPublicProfile(userId) {
+  return getProfileWithPosts(userId);
+}
+
+module.exports = { createProfile, getProfileByUserId, updateProfile, getPublicProfile, getProfileWithPosts };
